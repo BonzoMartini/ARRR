@@ -277,6 +277,7 @@
   camera-controls
   touch-action="pan-y"
   auto-rotate
+  autoplay
   ar
   ar-modes="webxr scene-viewer quick-look"
   ar-scale="auto"
@@ -332,8 +333,10 @@
     statusDot.classList.add('ready');
     hintText.style.display = 'block';
 
-    // Check AR availability
-    if (!mv.canActivateAR) {
+    // Auto-launch AR if available
+    if (mv.canActivateAR) {
+      setTimeout(() => mv.activateAR(), 500);
+    } else {
       noArNotice.style.display = 'block';
     }
   });
