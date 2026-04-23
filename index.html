@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AR Model Studio — QR Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ffe0;
+    --accent2: #ff3cac;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --glow: 0 0 30px rgba(0,255,224,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,224,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,224,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glowing orbs */
+  body::after {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,255,224,0.06) 0%, transparent 70%);
+    top: -200px; right: -200px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .orb2 {
+    position: fixed;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,60,172,0.05) 0%, transparent 70%);
+    bottom: -100px; left: -100px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    padding: 48px 48px 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-mark {
+    width: 36px; height: 36px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    box-shadow: var(--glow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-mark::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    background: var(--accent);
+    opacity: 0.3;
+    border-radius: 2px;
+  }
+
+  .logo-text {
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .logo-text span {
+    color: var(--muted);
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 48px 80px;
+  }
+
+  .hero {
+    margin-bottom: 64px;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid rgba(0,255,224,0.3);
+    padding: 4px 12px;
+    border-radius: 2px;
+    letter-spacing: 0.15em;
+    margin-bottom: 20px;
+    background: rgba(0,255,224,0.04);
+  }
+
+  h1 {
+    font-size: clamp(42px, 7vw, 72px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(0,255,224,0.4);
+  }
+
+  .subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 400;
+    max-width: 480px;
+    line-height: 1.6;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .form-group {
+    margin-bottom: 24px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  input[type="text"], input[type="url"] {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(0,255,224,0.2), inset 0 0 20px rgba(0,255,224,0.03);
+  }
+
+  input::placeholder { color: var(--muted); opacity: 0.5; }
+
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .preset-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,224,0.05);
+  }
+
+  .generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .generate-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .generate-btn:hover::before { opacity: 0.08; }
+  .generate-btn:hover { box-shadow: var(--glow); }
+
+  .generate-btn span { position: relative; z-index: 1; }
+
+  .output-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 40px;
+    align-items: start;
+    margin-top: 48px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s ease;
+  }
+
+  .output-grid.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .qr-wrapper {
+    background: #fff;
+    padding: 16px;
+    border-radius: 6px;
+    display: inline-block;
+    box-shadow: 0 0 40px rgba(0,255,224,0.1);
+  }
+
+  #qrcode canvas, #qrcode img {
+    display: block;
+  }
+
+  .output-info {
+    padding-top: 4px;
+  }
+
+  .output-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .output-url {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    word-break: break-all;
+    margin-bottom: 28px;
+    line-height: 1.7;
+    background: rgba(0,255,224,0.04);
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,255,224,0.1);
+  }
+
+  .instructions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    border: 1px solid rgba(255,60,172,0.3);
+    border-radius: 2px;
+    width: 24px; height: 24px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-text {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .step-text strong { color: var(--text); font-weight: 600; }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    margin-top: 8px;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: #00ff99; color: #00ff99; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  .info-strip {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .info-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .info-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 640px) {
+    main { padding: 40px 24px 60px; }
+    header { padding: 32px 24px 0; }
+    .panel { padding: 28px 24px; }
+    .output-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="orb2"></div>
+
+<header>
+  <div class="logo-mark"></div>
+  <div class="logo-text">AR<span>/</span>Studio</div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="tag">✦ WebXR + Model Viewer</div>
+    <h1>Place any 3D model<br>in the <em>real world</em></h1>
+    <p class="subtitle">Generate a QR code — scan it on your phone — tap AR. Your 3D model appears in your space.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Configure your AR experience</div>
+
+    <div class="form-group">
+      <label>3D Model URL — GLB or GLTF format</label>
+      <input type="url" id="modelUrl" placeholder="https://example.com/model.glb" />
+      <div class="presets">
+        <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);align-self:center;margin-right:4px;">SAMPLES:</span>
+        <button class="preset-btn" onclick="setPreset('astronaut')">🧑‍🚀 Astronaut</button>
+        <button class="preset-btn" onclick="setPreset('horse')">🐴 Horse</button>
+        <button class="preset-btn" onclick="setPreset('shishkebab')">🍡 Shishkebab</button>
+        <button class="preset-btn" onclick="setPreset('duck')">🦆 Duck</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Display Name (optional)</label>
+      <input type="text" id="modelName" placeholder="My AR Model" />
+    </div>
+
+    <button class="generate-btn" onclick="generateQR()">
+      <span>⬡ Generate QR Code</span>
+    </button>
+  </div>
+
+  <div class="output-grid" id="outputGrid">
+    <div>
+      <div class="output-label">Scan to launch AR</div>
+      <div class="qr-wrapper">
+        <div id="qrcode"></div>
+      </div>
+    </div>
+    <div class="output-info">
+      <div class="output-label">AR Viewer URL</div>
+      <div class="output-url" id="outputUrl">—</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyUrl()">
+        ⧉ Copy Link
+      </button>
+
+      <hr class="divider">
+
+      <div class="instructions">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Scan the QR code</strong> with your phone camera or QR scanner app</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Tap the AR button</strong> (cube icon) in the model viewer to launch augmented reality</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Point at a flat surface</strong> — floor or table — and tap to place your model</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="info-strip">
+    <div class="info-item"><div class="info-dot"></div><div class="info-text">Android → WebXR (Chrome)</div></div>
+    <div class="info-item"><div class="info-dot"></div><div class="info-text">iOS → Quick Look (Safari)</div></div>
+    <div class="info-item"><div class="info-dot"></div><div class="info-text">GLB & GLTF supported</div></div>
+    <div class="info-item"><div class="info-dot"></div><div class="info-text">No app install needed</div></div>
+  </div>
+</main>
+
+<script>
+  const PRESETS = {
+    astronaut: {
+      url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+      name: 'Astronaut'
+    },
+    horse: {
+      url: 'https://modelviewer.dev/shared-assets/models/Horse.glb',
+      name: 'Horse'
+    },
+    shishkebab: {
+      url: 'https://modelviewer.dev/shared-assets/models/ShishkebabLow.glb',
+      name: 'Shishkebab'
+    },
+    duck: {
+      url: 'https://modelviewer.dev/shared-assets/models/DamagedHelmet.glb',
+      name: 'Damaged Helmet'
+    }
+  };
+
+  function setPreset(key) {
+    document.getElementById('modelUrl').value = PRESETS[key].url;
+    document.getElementById('modelName').value = PRESETS[key].name;
+  }
+
+  let currentUrl = '';
+
+  function generateQR() {
+    const modelUrl = document.getElementById('modelUrl').value.trim();
+    const modelName = document.getElementById('modelName').value.trim() || '3D Model';
+
+    if (!modelUrl) {
+      document.getElementById('modelUrl').focus();
+      document.getElementById('modelUrl').style.borderColor = 'var(--accent2)';
+      setTimeout(() => document.getElementById('modelUrl').style.borderColor = '', 1500);
+      return;
+    }
+
+    // Build the AR viewer URL (viewer.html in same directory)
+    const viewerBase = window.location.href.replace('index.html', '').replace(/\/$/, '');
+    const params = new URLSearchParams({ model: modelUrl, name: modelName });
+    currentUrl = `${viewerBase}/viewer.html?${params.toString()}`;
+
+    // Clear and regenerate QR
+    const qrEl = document.getElementById('qrcode');
+    qrEl.innerHTML = '';
+    new QRCode(qrEl, {
+      text: currentUrl,
+      width: 188,
+      height: 188,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    document.getElementById('outputUrl').textContent = currentUrl;
+
+    const grid = document.getElementById('outputGrid');
+    grid.classList.add('visible');
+    grid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function copyUrl() {
+    if (!currentUrl) return;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '⧉ Copy Link';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  // Allow Enter key
+  document.getElementById('modelUrl').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generateQR();
+  });
+</script>
+</body>
+</html>

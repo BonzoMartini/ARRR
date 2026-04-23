@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AR Viewer</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080810;
+    --accent: #00ffe0;
+    --accent2: #ff3cac;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(8,8,16,0.95), transparent);
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .back-btn:hover { color: var(--accent); }
+
+  .model-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.ready { background: var(--accent); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Model viewer */
+  model-viewer {
+    width: 100%;
+    height: 100dvh;
+    background-color: transparent;
+    --poster-color: transparent;
+  }
+
+  /* Custom AR button — overrides model-viewer default */
+  .ar-button {
+    position: fixed !important;
+    bottom: 40px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    right: auto !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 18px 40px !important;
+    border-radius: 50px !important;
+    background: var(--accent) !important;
+    color: #000 !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 0 40px rgba(0,255,224,0.4), 0 8px 32px rgba(0,0,0,0.6) !important;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .ar-button:active {
+    transform: translateX(-50%) scale(0.97) !important;
+  }
+
+  .ar-button::before {
+    content: '' !important;
+    display: inline-block !important;
+    width: 20px !important;
+    height: 20px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2'%3E%3Cpath d='M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5'/%3E%3Cpath d='m22 22-4.5-4.5'/%3E%3Ccircle cx='17' cy='17' r='3'/%3E%3Cpath d='M2 12h9'/%3E%3Cpath d='M7 7l5 5-5 5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Progress / loading overlay */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 200;
+    transition: opacity 0.5s, visibility 0.5s;
+  }
+
+  .loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .loading-ring {
+    width: 64px; height: 64px;
+    border: 2px solid var(--muted);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .loading-progress {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* Error state */
+  .error-panel {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px;
+    text-align: center;
+    background: var(--bg);
+    z-index: 300;
+  }
+
+  .error-panel.visible { display: flex; }
+
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+  }
+
+  .error-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent2);
+  }
+
+  .error-msg {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 320px;
+    line-height: 1.7;
+  }
+
+  /* No AR notice */
+  .no-ar-notice {
+    position: fixed;
+    bottom: 100px;
+    left: 50%; transform: translateX(-50%);
+    background: rgba(255,60,172,0.1);
+    border: 1px solid rgba(255,60,172,0.3);
+    border-radius: 6px;
+    padding: 12px 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.6;
+    display: none;
+  }
+
+  /* Controls hint */
+  .hint {
+    position: fixed;
+    bottom: 110px;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  /* Background gradient */
+  .bg-gradient {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #0d0d1f 0%, #080810 100%);
+    z-index: -1;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-gradient"></div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-progress" id="loadingProgress">0%</div>
+  <div class="loading-ring"></div>
+  <div class="loading-text">Loading model</div>
+</div>
+
+<!-- Error panel -->
+<div class="error-panel" id="errorPanel">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">Could not load model</div>
+  <div class="error-msg" id="errorMsg">The 3D model URL may be invalid or the server doesn't allow cross-origin requests.</div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <a href="index.html" class="back-btn">← Back</a>
+  <div class="model-title" id="modelTitleEl">Loading...</div>
+  <div class="status-dot" id="statusDot"></div>
+</div>
+
+<!-- Model Viewer -->
+<model-viewer
+  id="mv"
+  camera-controls
+  touch-action="pan-y"
+  auto-rotate
+  ar
+  ar-modes="webxr scene-viewer quick-look"
+  ar-scale="auto"
+  shadow-intensity="1"
+  environment-image="neutral"
+  exposure="1"
+>
+  <button slot="ar-button" class="ar-button">View in AR</button>
+  <div slot="progress-bar"></div>
+</model-viewer>
+
+<div class="hint" id="hintText" style="display:none">Drag to rotate &nbsp;·&nbsp; Pinch to zoom</div>
+<div class="no-ar-notice" id="noArNotice">
+  AR not available on this device.<br>Use Chrome on Android or Safari on iOS.
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const modelUrl = params.get('model');
+  const modelName = params.get('name') || '3D Model';
+
+  const mv = document.getElementById('mv');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingProgress = document.getElementById('loadingProgress');
+  const errorPanel = document.getElementById('errorPanel');
+  const statusDot = document.getElementById('statusDot');
+  const modelTitleEl = document.getElementById('modelTitleEl');
+  const hintText = document.getElementById('hintText');
+  const noArNotice = document.getElementById('noArNotice');
+
+  // Set title
+  modelTitleEl.textContent = modelName;
+  document.title = `AR — ${modelName}`;
+
+  if (!modelUrl) {
+    errorPanel.classList.add('visible');
+    document.getElementById('errorMsg').textContent = 'No model URL provided. Please scan a valid AR QR code.';
+    loadingOverlay.classList.add('hidden');
+  } else {
+    mv.src = modelUrl;
+    mv.alt = modelName;
+  }
+
+  // Progress
+  mv.addEventListener('progress', e => {
+    const pct = Math.round(e.detail.totalProgress * 100);
+    loadingProgress.textContent = pct + '%';
+  });
+
+  // Loaded
+  mv.addEventListener('load', () => {
+    loadingOverlay.classList.add('hidden');
+    statusDot.classList.add('ready');
+    hintText.style.display = 'block';
+
+    // Check AR availability
+    if (!mv.canActivateAR) {
+      noArNotice.style.display = 'block';
+    }
+  });
+
+  // Error
+  mv.addEventListener('error', () => {
+    loadingOverlay.classList.add('hidden');
+    errorPanel.classList.add('visible');
+  });
+
+  // AR session events
+  mv.addEventListener('ar-status', e => {
+    if (e.detail.status === 'not-presenting') {
+      hintText.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>
