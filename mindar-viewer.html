@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR Image Tracker</title>
+
+<!-- MindAR + A-Frame -->
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #08080f;
+    --accent: #00ffe0;
+    --accent2: #ff3cac;
+    --text: #e8e8f0;
+    --muted: #4a4a6a;
+    --glow: 0 0 30px rgba(0,255,224,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Splash / instruction screen ── */
+  #splash {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    text-align: center;
+    transition: opacity 0.6s, visibility 0.6s;
+  }
+
+  #splash.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  /* Animated scan icon */
+  .scan-icon {
+    width: 120px;
+    height: 120px;
+    position: relative;
+    margin-bottom: 36px;
+  }
+
+  .scan-corners {
+    position: absolute;
+    inset: 0;
+  }
+
+  .scan-corners::before,
+  .scan-corners::after {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-color: var(--accent);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .scan-corners::before {
+    top: 0; left: 0;
+    border-top-width: 3px;
+    border-left-width: 3px;
+    border-radius: 4px 0 0 0;
+  }
+
+  .scan-corners::after {
+    bottom: 0; right: 0;
+    border-bottom-width: 3px;
+    border-right-width: 3px;
+    border-radius: 0 0 4px 0;
+  }
+
+  .scan-corners-2::before,
+  .scan-corners-2::after {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-color: var(--accent);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .scan-corners-2 {
+    position: absolute;
+    inset: 0;
+  }
+
+  .scan-corners-2::before {
+    top: 0; right: 0;
+    border-top-width: 3px;
+    border-right-width: 3px;
+    border-radius: 0 4px 0 0;
+  }
+
+  .scan-corners-2::after {
+    bottom: 0; left: 0;
+    border-bottom-width: 3px;
+    border-left-width: 3px;
+    border-radius: 0 0 0 4px;
+  }
+
+  .scan-line {
+    position: absolute;
+    left: 10px; right: 10px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    top: 10px;
+    animation: scanMove 2s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .scan-image-preview {
+    position: absolute;
+    inset: 12px;
+    border-radius: 2px;
+    overflow: hidden;
+    opacity: 0.25;
+  }
+
+  .scan-image-preview img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  @keyframes scanMove {
+    0%, 100% { top: 10px; }
+    50% { top: calc(100% - 12px); }
+  }
+
+  .splash-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    border: 1px solid rgba(0,255,224,0.25);
+    padding: 4px 12px;
+    border-radius: 2px;
+    background: rgba(0,255,224,0.04);
+  }
+
+  .splash-title {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+
+  .splash-title em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .splash-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin-bottom: 40px;
+    max-width: 280px;
+  }
+
+  .splash-sub strong { color: var(--text); }
+
+  .start-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 16px 44px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: var(--glow);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .start-btn:active {
+    transform: scale(0.96);
+  }
+
+  /* ── AR scene fills screen ── */
+  a-scene {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* ── HUD overlay ── */
+  #hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+  }
+
+  #hud.active { display: block; }
+
+  /* Corner brackets */
+  .hud-corners {
+    position: absolute;
+    inset: 20px;
+  }
+
+  .hud-corner {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: rgba(0,255,224,0.4);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .hud-corner.tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
+  .hud-corner.tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+  .hud-corner.bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
+  .hud-corner.br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+
+  /* Top status bar */
+  .hud-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(8,8,15,0.8), transparent);
+    pointer-events: all;
+  }
+
+  .hud-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .tracking-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .tracking-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .tracking-dot.found { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  /* Bottom prompt */
+  .hud-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(to top, rgba(8,8,15,0.85), transparent);
+    pointer-events: all;
+  }
+
+  .scan-prompt {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+    transition: color 0.3s;
+  }
+
+  .scan-prompt.found { color: var(--accent); }
+
+  .stop-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 50px;
+    color: rgba(255,255,255,0.4);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 8px 20px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    pointer-events: all;
+    transition: all 0.2s;
+  }
+
+  .stop-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── Loading overlay ── */
+  #loading {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 400;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  #loading.active { display: flex; }
+
+  .loading-ring {
+    width: 52px; height: 52px;
+    border: 2px solid var(--muted);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,224,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,224,0.025) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Splash screen -->
+<div id="splash">
+  <div class="scan-icon">
+    <div class="scan-image-preview">
+      <img src="https://bonzomartini.github.io/ARRR/dD_04.webp" alt="target" onerror="this.style.display='none'">
+    </div>
+    <div class="scan-corners"></div>
+    <div class="scan-corners-2"></div>
+    <div class="scan-line"></div>
+  </div>
+
+  <div class="splash-tag">✦ Image Tracking AR</div>
+  <div class="splash-title">Point camera<br>at the <em>image</em></div>
+  <p class="splash-sub">
+    This will activate your camera.<br>
+    <strong>Point it at the image</strong> and your<br>
+    3D model will appear on top of it.
+  </p>
+  <button class="start-btn" onclick="startAR()">Launch Camera</button>
+</div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-ring"></div>
+  <div class="loading-label">Initialising AR...</div>
+</div>
+
+<!-- HUD overlay (shown during AR) -->
+<div id="hud">
+  <div class="hud-corners">
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+  </div>
+  <div class="hud-top">
+    <div class="hud-logo">AR/Studio</div>
+    <div class="tracking-status">
+      <div class="tracking-dot" id="trackingDot"></div>
+      <span id="trackingLabel">Searching</span>
+    </div>
+  </div>
+  <div class="hud-bottom">
+    <div class="scan-prompt" id="scanPrompt">Point camera at the image</div>
+    <button class="stop-btn" onclick="stopAR()">✕ Stop AR</button>
+  </div>
+</div>
+
+<!-- A-Frame + MindAR scene (built dynamically) -->
+<div id="arContainer"></div>
+
+<script>
+  let sceneEl = null;
+
+  const MIND_URL = 'https://bonzomartini.github.io/ARRR/targets.mind';
+  const GLB_URL  = 'https://bonzomartini.github.io/ARRR/BrunoAVTwithAnim.glb';
+
+  function startAR() {
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('loading').classList.add('active');
+
+    // Build the A-Frame scene dynamically so camera doesn't activate on page load
+    const container = document.getElementById('arContainer');
+    container.innerHTML = `
+      <a-scene
+        id="arScene"
+        mindar-image="imageTargetSrc: ${MIND_URL}; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;"
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights: true"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false"
+      >
+        <a-assets>
+          <a-asset-item id="model" src="${GLB_URL}"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+          <a-gltf-model
+            src="#model"
+            position="0 0 0.1"
+            rotation="0 0 0"
+            scale="0.15 0.15 0.15"
+            animation-mixer="loop: repeat; crossFadeDuration: 0.3"
+          ></a-gltf-model>
+        </a-entity>
+      </a-scene>
+    `;
+
+    sceneEl = document.getElementById('arScene');
+
+    sceneEl.addEventListener('loaded', () => {
+      document.getElementById('loading').classList.remove('active');
+      document.getElementById('hud').classList.add('active');
+    });
+
+    // Target found / lost events
+    sceneEl.addEventListener('targetFound', () => {
+      document.getElementById('trackingDot').classList.add('found');
+      document.getElementById('trackingLabel').textContent = 'Tracking';
+      document.getElementById('scanPrompt').textContent = '✦ Model detected';
+      document.getElementById('scanPrompt').classList.add('found');
+    });
+
+    sceneEl.addEventListener('targetLost', () => {
+      document.getElementById('trackingDot').classList.remove('found');
+      document.getElementById('trackingLabel').textContent = 'Searching';
+      document.getElementById('scanPrompt').textContent = 'Point camera at the image';
+      document.getElementById('scanPrompt').classList.remove('found');
+    });
+  }
+
+  function stopAR() {
+    if (sceneEl) {
+      const sys = sceneEl.systems['mindar-image-system'];
+      if (sys) sys.stop();
+    }
+    document.getElementById('arContainer').innerHTML = '';
+    document.getElementById('hud').classList.remove('active');
+    document.getElementById('splash').classList.remove('hidden');
+    sceneEl = null;
+  }
+</script>
+</body>
+</html>
