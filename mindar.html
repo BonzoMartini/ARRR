@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AR Viewer</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <style>
+    body { margin: 0; }
+
+    /* Aggressively hide ALL MindAR injected UI */
+    #mindar-ui,
+    .mindar-ui,
+    [id^="mindar"],
+    [class^="mindar"],
+    [id*="mindar"],
+    [class*="mindar"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    #splash {
+      position: fixed; inset: 0; z-index: 999;
+      background: #08080f;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: sans-serif; color: white; text-align: center; padding: 32px;
+    }
+    #splash.gone { display: none; }
+    #splash h1 { font-size: 28px; margin-bottom: 12px; }
+    #splash p  { font-size: 14px; color: #888; margin-bottom: 40px; line-height: 1.6; }
+    #startBtn {
+      background: #00ffe0; color: #000;
+      border: none; border-radius: 50px;
+      padding: 16px 48px; font-size: 15px; font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <h1>AR Image Viewer</h1>
+  <p>Tap the button, allow camera access,<br>then point at the image.</p>
+  <button id="startBtn" onclick="startAR()">Launch Camera</button>
+</div>
+
+<a-scene
+  id="scene"
+  mindar-image="imageTargetSrc: https://bonzomartini.github.io/ARRR/targets.mind;
+    autoStart: false;
+    uiLoading: no; uiError: no; uiScanning: no;
+    filterMinCF: 0.001;
+    filterBeta: 0.01;
+    missTolerance: 1;
+    warmupTolerance: 3;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; shadowMapEnabled: true; shadowMapType: PCFSoftShadowMap"
+  light="defaultLightsEnabled: false"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets>
+    <a-asset-item id="model" src="https://bonzomartini.github.io/ARRR/BrunoAVTwithAnim.glb"></a-asset-item>
+  </a-assets>
+
+  <!-- Custom lighting — default lights disabled so these actually take effect -->
+  <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+  <a-light type="directional" color="#ffffff" intensity="1.5"
+    position="1 3 2"
+    cast-shadow="true"
+    shadow-camera-near="0.1"
+    shadow-camera-far="10"
+    shadow-camera-left="-2"
+    shadow-camera-right="2"
+    shadow-camera-top="2"
+    shadow-camera-bottom="-2"
+    shadow-mapsize-width="1024"
+    shadow-mapsize-height="1024"
+  ></a-light>
+  <!-- Cool fill from left -->
+  <a-light type="directional" color="#88aaff" intensity="0.4" position="-2 1 -1"></a-light>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+
+    <!-- Transparent shadow catcher plane -->
+    <a-plane
+      position="0 -0.5 0"
+      rotation="-90 0 0"
+      width="3" height="3"
+      material="color: #000; opacity: 0.0; transparent: true; shader: flat"
+      receive-shadow="true"
+    ></a-plane>
+
+    <a-gltf-model
+      id="myModel"
+      src="#model"
+      position="0 -0.5 0.1"
+      scale="0.5 0.5 0.5"
+      cast-shadow="true"
+      receive-shadow="true"
+    ></a-gltf-model>
+
+  </a-entity>
+</a-scene>
+
+<script>
+  // Trigger animation once model loads
+  document.querySelector('#myModel').addEventListener('model-loaded', () => {
+    document.querySelector('#myModel').setAttribute('animation-mixer', 'loop: repeat; crossFadeDuration: 0.3;');
+  });
+
+  // Also hide any MindAR UI injected after page load
+  const uiObserver = new MutationObserver(() => {
+    document.querySelectorAll('[id*="mindar"],[class*="mindar"]').forEach(el => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+  });
+  uiObserver.observe(document.body, { childList: true, subtree: true });
+
+  function startAR() {
+    document.getElementById('splash').classList.add('gone');
+    const scene = document.getElementById('scene');
+    scene.systems['mindar-image-system'].start();
+  }
+</script>
+
+</body>
+</html>
