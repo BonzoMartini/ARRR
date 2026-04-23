@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AR Viewer</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- aframe-extras needed for animation-mixer -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <style>
+    body { margin: 0; }
+
+    #splash {
+      position: fixed; inset: 0; z-index: 999;
+      background: #08080f;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: sans-serif; color: white; text-align: center; padding: 32px;
+    }
+    #splash.gone { display: none; }
+    #splash h1 { font-size: 28px; margin-bottom: 12px; }
+    #splash p  { font-size: 14px; color: #888; margin-bottom: 40px; line-height: 1.6; }
+
+    #startBtn {
+      background: #00ffe0; color: #000;
+      border: none; border-radius: 50px;
+      padding: 16px 48px; font-size: 15px; font-weight: bold;
+      cursor: pointer;
+    }
+
+    #status {
+      position: fixed; bottom: 30px; left: 0; right: 0;
+      text-align: center; z-index: 100;
+      font-family: sans-serif; font-size: 13px;
+      color: white; background: rgba(0,0,0,0.5);
+      padding: 10px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <h1>AR Image Viewer</h1>
+  <p>Tap the button, allow camera access,<br>then point at the image.</p>
+  <button id="startBtn" onclick="startAR()">Launch Camera</button>
+</div>
+
+<div id="status">🔍 Point camera at the image...</div>
+
+<a-scene
+  id="scene"
+  mindar-image="imageTargetSrc: https://bonzomartini.github.io/ARRR/targets.mind;
+    autoStart: false;
+    uiLoading: no; uiError: no; uiScanning: no;
+    filterMinCF: 0.0001;
+    filterBeta: 10000;
+    missTolerance: 25;
+    warmupTolerance: 5;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets>
+    <a-asset-item id="model" src="https://bonzomartini.github.io/ARRR/BrunoAVTwithAnim.glb"></a-asset-item>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-gltf-model
+      id="myModel"
+      src="#model"
+      position="0 0 0.1"
+      scale="0.5 0.5 0.5"
+    ></a-gltf-model>
+  </a-entity>
+</a-scene>
+
+<script>
+  // Start animation once model loads
+  document.querySelector('#myModel').addEventListener('model-loaded', () => {
+    const model = document.querySelector('#myModel');
+    model.setAttribute('animation-mixer', 'loop: repeat; crossFadeDuration: 0.3;');
+  });
+
+  function startAR() {
+    document.getElementById('splash').classList.add('gone');
+    document.getElementById('status').style.display = 'block';
+
+    const scene = document.getElementById('scene');
+    const sys = scene.systems['mindar-image-system'];
+    sys.start();
+
+    scene.addEventListener('targetFound', () => {
+      document.getElementById('status').textContent = '✅ Model found!';
+    });
+    scene.addEventListener('targetLost', () => {
+      document.getElementById('status').textContent = '🔍 Point camera at the image...';
+    });
+  }
+</script>
+
+</body>
+</html>
