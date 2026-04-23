@@ -53,10 +53,10 @@
   mindar-image="imageTargetSrc: https://bonzomartini.github.io/ARRR/targets.mind;
     autoStart: false;
     uiLoading: no; uiError: no; uiScanning: no;
-    filterMinCF: 0.0001;
-    filterBeta: 10000;
-    missTolerance: 25;
-    warmupTolerance: 5;"
+    filterMinCF: 0.001;
+    filterBeta: 0.01;
+    missTolerance: 5;
+    warmupTolerance: 3;"
   color-space="sRGB"
   renderer="colorManagement: true; physicallyCorrectLights: true"
   vr-mode-ui="enabled: false"
@@ -72,7 +72,7 @@
     <a-gltf-model
       id="myModel"
       src="#model"
-      position="0 0 0.1"
+      position="0 -0.5 0.1"
       scale="0.5 0.5 0.5"
     ></a-gltf-model>
   </a-entity>
